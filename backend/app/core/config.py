@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     DEFAULT_EMBEDDING_MODEL: str = "text-embedding-3-small"
     DEFAULT_GENERATION_MODEL: str = "gpt-4o"
     VECTOR_STORE_TYPE: str = "faiss"  # pinecone | faiss
+    GEMINI_API_KEY: str = ""
 
     PINECONE_API_KEY: str = ""
     PINECONE_ENVIRONMENT: str = ""
