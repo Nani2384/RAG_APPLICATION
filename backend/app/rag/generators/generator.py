@@ -1,7 +1,8 @@
 import json
 import re
 from typing import AsyncGenerator, List, Dict, Any
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 from app.core.config import settings
 import structlog
 
@@ -43,9 +44,9 @@ def preprocess_chunk_text(text: str) -> str:
 
 class RAGGenerator:
     def __init__(self):
-        self.api_key = settings.OPENAI_API_KEY
+        self.api_key = settings.GEMINI_API_KEY
         if self.api_key:
-            self.client = AsyncOpenAI(api_key=self.api_key)
+            self.client = genai.Client(api_key=self.api_key)
         else:
             self.client = None
         self.model = settings.DEFAULT_GENERATION_MODEL
@@ -90,33 +91,46 @@ class RAGGenerator:
             f"{context_text}"
         )
         
-        messages = [{"role": "system", "content": system_prompt}]
+        contents = []
         for msg in chat_history[-5:]: # Keep last 5 messages for memory
-            messages.append({"role": msg["role"], "content": msg["content"]})
-            
-        messages.append({"role": "user", "content": query})
-        
+            role = "model" if msg["role"] == "assistant" else msg["role"]
+            contents.append(
+                types.Content(
+                    role=role,
+                    parts=[types.Part.from_text(text=msg["content"])]
+                )
+            )
+        contents.append(
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=query)]
+            )
+        )
+
+        config = types.GenerateContentConfig(
+            temperature=0.0,
+            system_instruction=system_prompt
+        )
+
         try:
             if not self.client:
-                raise ValueError("OpenAI client not configured.")
-                
-            response = await self.client.chat.completions.create(
+                raise ValueError("Gemini client not configured.")
+
+            response = await self.client.aio.models.generate_content_stream(
                 model=self.model,
-                messages=messages,
-                stream=True,
-                temperature=0.0 # strict adherence
+                contents=contents,
+                config=config
             )
-            
+
             # Send initial sources payload so the frontend knows what is being cited
             sources_payload = json.dumps({"type": "sources", "data": mapped_sources})
             yield f"data: {sources_payload}\n\n"
-            
+
             async for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    payload = json.dumps({"type": "content", "data": content})
+                if chunk.text:
+                    payload = json.dumps({"type": "content", "data": chunk.text})
                     yield f"data: {payload}\n\n"
-                    
+
             yield f"data: [DONE]\n\n"
         except Exception as e:
             logger.warn("OpenAI generation failed, executing highly robust local grounded RAG fallback...", error=str(e))
