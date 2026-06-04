@@ -108,13 +108,13 @@ def categorize_error(e: Exception) -> dict:
         }
 
 async def async_run_ingestion_pipeline_with_retry(self, document_id: int, file_path: str):
-    from app.services.ingestion import IngestionService
-    from app.core.database import engine, AsyncSessionLocal
     import structlog
-    
     logger = structlog.get_logger(__name__)
     
     try:
+        from app.services.ingestion import IngestionService
+        from app.core.database import engine, AsyncSessionLocal
+        
         # 1. Update status to processing and fetch workspace_id
         await async_update_document_status(document_id, "processing")
         workspace_id = await async_get_document_workspace_id(document_id)
