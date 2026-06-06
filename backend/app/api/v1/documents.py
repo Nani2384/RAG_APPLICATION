@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, status, Form
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, status, Form, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional
 import os
@@ -76,16 +76,16 @@ async def upload_document(
 
 @router.get("/")
 async def list_documents(
+    workspace_id: Optional[int] = Query(None, description="Filter documents by Workspace ID"),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     # Enforce strict multi-user isolation: fetch only documents in workspaces owned by user
-    result = await db.execute(
-        select(Document)
-        .join(Workspace)
-        .where(Workspace.owner_id == current_user["id"])
-        .order_by(Document.id.desc())
-    )
+    query = select(Document).join(Workspace).where(Workspace.owner_id == current_user["id"])
+    if workspace_id is not None:
+        query = query.where(Document.workspace_id == workspace_id)
+        
+    result = await db.execute(query.order_by(Document.id.desc()))
     documents = result.scalars().all()
     return {
         "data": [
