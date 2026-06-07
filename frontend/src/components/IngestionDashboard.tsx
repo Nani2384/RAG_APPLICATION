@@ -15,10 +15,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface IngestionDashboardProps {
   token: string;
+  activeWorkspaceId: number | null;
   onAuthError: () => void;
 }
 
-export function IngestionDashboard({ token, onAuthError }: IngestionDashboardProps) {
+export function IngestionDashboard({ token, activeWorkspaceId, onAuthError }: IngestionDashboardProps) {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -28,7 +29,10 @@ export function IngestionDashboard({ token, onAuthError }: IngestionDashboardPro
     if (!token) return;
     setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/documents/`, {
+      const url = activeWorkspaceId 
+        ? `${API_BASE}/api/v1/documents/?workspace_id=${activeWorkspaceId}`
+        : `${API_BASE}/api/v1/documents/`;
+      const res = await fetch(url, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -50,19 +54,21 @@ export function IngestionDashboard({ token, onAuthError }: IngestionDashboardPro
 
   useEffect(() => {
     fetchDocuments();
+  }, [activeWorkspaceId, token]);
 
+  useEffect(() => {
     // Auto poll if any document is in transition state
+    const hasTransitioning = documents.some(
+      (doc) => doc.status === "uploaded" || doc.status === "processing"
+    );
+    if (!hasTransitioning && documents.length > 0) return;
+
     const interval = setInterval(() => {
-      const hasTransitioning = documents.some(
-        (doc) => doc.status === "uploaded" || doc.status === "processing"
-      );
-      if (hasTransitioning || documents.length === 0) {
-        fetchDocuments();
-      }
+      fetchDocuments();
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [documents]);
+  }, [documents, activeWorkspaceId, token]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -95,6 +101,9 @@ export function IngestionDashboard({ token, onAuthError }: IngestionDashboardPro
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    if (activeWorkspaceId) {
+      formData.append("workspace_id", activeWorkspaceId.toString());
+    }
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/documents/upload`, {

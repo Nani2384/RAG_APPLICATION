@@ -11,6 +11,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export default function Home() {
   const [activeTab, setActiveTab] = useState("conversations");
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(null);
   
   // Auth state management
   const [token, setToken] = useState<string>("");
@@ -27,7 +28,17 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem("jwt_token");
     setToken(saved || "dummy-token-123");
+    const savedWs = localStorage.getItem("active_workspace_id");
+    if (savedWs) {
+      setActiveWorkspaceId(parseInt(savedWs, 10));
+    }
   }, []);
+
+  const handleSelectWorkspace = (id: number) => {
+    setActiveWorkspaceId(id);
+    localStorage.setItem("active_workspace_id", id.toString());
+    setActiveThreadId(null);
+  };
 
   const handleAuthError = () => {
     setAuthError("Your active session has expired or requires validation. Please sign in.");
@@ -108,6 +119,8 @@ export default function Home() {
         setActiveTab={setActiveTab} 
         activeThreadId={activeThreadId}
         setActiveThreadId={setActiveThreadId}
+        activeWorkspaceId={activeWorkspaceId}
+        setActiveWorkspaceId={handleSelectWorkspace}
         token={token}
         onAuthError={handleAuthError}
         onLogout={handleLogout}
@@ -117,6 +130,7 @@ export default function Home() {
           <ChatInterface 
             activeThreadId={activeThreadId} 
             setActiveThreadId={setActiveThreadId} 
+            activeWorkspaceId={activeWorkspaceId}
             token={token}
             onAuthError={handleAuthError}
           />
@@ -124,6 +138,7 @@ export default function Home() {
         {activeTab === "ingestion" && (
           <IngestionDashboard 
             token={token}
+            activeWorkspaceId={activeWorkspaceId}
             onAuthError={handleAuthError}
           />
         )}

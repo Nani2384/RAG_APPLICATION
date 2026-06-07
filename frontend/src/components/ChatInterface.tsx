@@ -14,6 +14,7 @@ interface Message {
 interface ChatInterfaceProps {
   activeThreadId: number | null;
   setActiveThreadId: (id: number | null) => void;
+  activeWorkspaceId: number | null;
   token: string;
   onAuthError: () => void;
 }
@@ -112,7 +113,7 @@ function FormattedMessage({
   );
 }
 
-export function ChatInterface({ activeThreadId, setActiveThreadId, token, onAuthError }: ChatInterfaceProps) {
+export function ChatInterface({ activeThreadId, setActiveThreadId, activeWorkspaceId, token, onAuthError }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: "Hello! I am your enterprise AI assistant. I have access to your workspace documents. How can I help you today?" }
   ]);
@@ -182,7 +183,7 @@ export function ChatInterface({ activeThreadId, setActiveThreadId, token, onAuth
         },
         body: JSON.stringify({
           query: userMessage.content,
-          workspace_id: 1, // Mock workspace
+          workspace_id: activeWorkspaceId || 1,
           thread_id: activeThreadId,
           chat_history: messages
             .filter((m) => m.content !== "Hello! I am your enterprise AI assistant. I have access to your workspace documents. How can I help you today?")
